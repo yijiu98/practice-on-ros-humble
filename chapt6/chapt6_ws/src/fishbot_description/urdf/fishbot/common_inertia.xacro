@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!-- 声明XML文件为版本1.0 -->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <!-- 机器人定义的根元素，使用xacro命名空间 -->
+    
+    <!-- 定义一个名为 "box_inertia" 的宏，用于计算矩形盒子的惯性 -->
+    <xacro:macro name="box_inertia" params="m w h d">
+        <!-- 该宏的参数为质量(m)和盒子的长(w)，宽(h)，高(d) -->
+
+        <inertial>
+            <!-- 定义惯性特性 -->
+            
+            <mass value="${m}" />
+            <!-- 质量设置为传入的参数m -->
+            
+            <!-- 计算惯性矩阵，对于一个矩形盒子，使用标准公式 -->
+            <inertia ixx="${(m/12) * (h*h + d*d)}" ixy="0.0" ixz="0.0" iyy="${(m/12) * (w*w + d*d)}" iyz="0.0" izz="${(m/12) * (w*w + h*h)}" />
+            <!-- 计算惯性矩阵的各个分量，分别是xx、yy、zz轴的惯性矩和惯性分量，传入的参数m是质量，w、h、d是盒子的长宽高 -->
+
+        </inertial>
+    </xacro:macro>
+
+    <!-- 定义一个名为 "cylinder_inertia" 的宏，用于计算圆柱体的惯性 -->
+    <xacro:macro name="cylinder_inertia" params="m r h">
+        <!-- 该宏的参数为质量(m)，半径(r)，和圆柱体的高度(h) -->
+        
+        <inertial>
+            <!-- 定义惯性特性 -->
+            
+            <mass value="${m}" />
+            <!-- 质量设置为传入的参数m -->
+            
+            <!-- 计算圆柱体的惯性矩阵 -->
+            <inertia ixx="${(m/12) * (3*r*r + h*h)}" ixy="0" ixz="0" iyy="${(m/12) * (3*r*r + h*h)}" iyz="0" izz="${(m/2) * (r*r)}" />
+            <!-- 使用圆柱体的标准惯性公式计算惯性矩阵，r是半径，h是高度 -->
+
+        </inertial>
+    </xacro:macro>
+
+    <!-- 定义一个名为 "sphere_inertia" 的宏，用于计算球体的惯性 -->
+    <xacro:macro name="sphere_inertia" params="m r">
+        <!-- 该宏的参数为质量(m)和球体的半径(r) -->
+        
+        <inertial>
+            <!-- 定义惯性特性 -->
+            
+            <mass value="${m}" />
+            <!-- 质量设置为传入的参数m -->
+            
+            <!-- 计算球体的惯性矩阵 -->
+            <inertia ixx="${(2/5) * m * (r*r)}" ixy="0.0" ixz="0.0" iyy="${(2/5) * m * (r*r)}" iyz="0.0" izz="${(2/5) * m * (r*r)}" />
+            <!-- 使用球体的惯性公式计算惯性矩阵，公式适用于球体的惯性矩计算 -->
+        </inertial>
+    </xacro:macro>
+
+</robot>
