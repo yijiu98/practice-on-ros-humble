@@ -32,7 +32,7 @@ def generate_launch_description():
       	# 传递参数
         launch_arguments=[('world', default_world_path),('verbose','true')]
     )
-    # 请求 Gazebo 加载机器人
+    # 请求 Gazebo 加载机器人,这里默认加载机器人在0,0,0位置
     spawn_entity_node = launch_ros.actions.Node(
         package='gazebo_ros',
         executable='spawn_entity.py',

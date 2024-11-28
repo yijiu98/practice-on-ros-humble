@@ -121,6 +121,7 @@
     <sensor type="depth" name="camera_sensor">
         <plugin name="depth_camera" filename="libgazebo_ros_camera.so">
             <frame_name>camera_optical_link</frame_name>
+            <depth_scale>0.001</depth_scale> <!-- 自定义比例因子 -->
         </plugin>
         <always_on>true</always_on>
         <update_rate>10</update_rate>

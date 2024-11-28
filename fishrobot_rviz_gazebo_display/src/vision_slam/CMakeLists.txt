@@ -7,6 +7,13 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+include_directories( "/usr/include/eigen3/" )
+# pcl 
+find_package( PCL REQUIRED COMPONENT common io )
+include_directories( ${PCL_INCLUDE_DIRS} )
+add_definitions( ${PCL_DEFINITIONS} )
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -23,4 +30,15 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+add_executable(vision_slam src/joint_map.cpp)
+
+target_link_libraries( vision_slam ${OpenCV_LIBS} ${PCL_LIBRARIES} )
+# 安装 launch 文件
+install(TARGETS vision_slam
+  DESTINATION lib/${PROJECT_NAME}  # 确保安装路径正确
+)
+
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
 ament_package()

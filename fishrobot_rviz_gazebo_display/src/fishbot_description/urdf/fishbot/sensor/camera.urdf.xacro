@@ -1,42 +1,68 @@
-<?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+<?xml version="1.0"?>  <!-- 定义XML版本 -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">  <!-- 引入xacro命名空间，用于动态参数化URDF文件 -->
+
+   <!-- 引入通用惯性参数文件 -->
    <xacro:include filename="$(find fishbot_description)/urdf/fishbot/common_inertia.xacro" />
-    <xacro:macro name="camera_xacro" params="xyz">
+
+   <!-- 定义一个相机模块的宏，参数为相机的位置xyz -->
+   <xacro:macro name="camera_xacro" params="xyz">
+
         <!-- ============相机模块================ -->
+        <!-- 定义相机的物理连接（link） -->
         <link name="camera_link">
+            <!-- 可视化部分：定义相机外观 -->
             <visual>
+                <!-- 设置相机的位置（origin），rpy为旋转角度 -->
                 <origin xyz="0 0 0.0" rpy="0 0 0" />
+                <!-- 相机的几何形状，这里是一个长方体 -->
                 <geometry>
-                    <box size="0.02 0.10 0.02" />
+                    <box size="0.02 0.10 0.02" />  <!-- 长、宽、高分别为 0.02m, 0.10m, 0.02m -->
                 </geometry>
+                <!-- 材料部分，设置颜色为黑色 -->
                 <material name="black">
-                    <color rgba="0.0 0.0 0.0 0.8"/>
+                    <color rgba="0.0 0.0 0.0 0.8"/>  <!-- 颜色值 rgba，最后一个值是透明度 -->
                 </material>
             </visual>
+
+            <!-- 碰撞部分：定义相机的碰撞体积 -->
             <collision>
+                <!-- 设置碰撞体积的位置（origin）和旋转角度（rpy） -->
                 <origin xyz="0 0 0.0" rpy="0 0 0" />
+                <!-- 碰撞几何形状，和可视化一样，使用长方体 -->
                 <geometry>
                     <box size="0.02 0.10 0.02" />
                 </geometry>
+                <!-- 材料部分，设置颜色为黑色，和可视化部分一致 -->
                 <material name="black">
                     <color rgba="0.0 0.0 0.0 0.8"/>
                 </material>
             </collision>
-            <xacro:box_inertia m="0.01" w="0.02" h="0.10" d="0.02" />
+
+            <!-- 为相机添加惯性特性（质量、长宽高） -->
+            <xacro:box_inertia m="0.01" w="0.02" h="0.10" d="0.02" /> <!-- 质量为0.01kg，长0.02m，宽0.10m，高0.02m -->
+
         </link>
-         <!-- ============相机的光学坐标系，默认相机前前方是z轴================ -->
+
+         <!-- ============相机的光学坐标系，默认相机前方是z轴================ -->
+        <!-- 定义一个链接，表示相机的光学坐标系 -->
         <link name="camera_optical_link"></link>
+
+        <!-- 定义相机光学坐标系的连接方式，类型为固定的 -->
         <joint name="camera_optical_joint" type="fixed">
-            <parent link="camera_link" />
-            <child link="camera_optical_link" />
+            <parent link="camera_link" />  <!-- 光学坐标系的父连接为相机链接 -->
+            <child link="camera_optical_link" />  <!-- 光学坐标系的子连接为光学坐标系链接 -->
+            <!-- 设置连接的位姿，原点为 (0, 0, 0)，旋转角度为 pi/2 (绕z轴) 和 -pi/2 (绕x轴) -->
             <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}" />
         </joint>
 
+        <!-- 定义相机的固定连接，连接到机器人基座 -->
         <joint name="camera_joint" type="fixed">
-            <parent link="base_link" />
-            <child link="camera_link" />
+            <parent link="base_link" />  <!-- 相机的父连接为 base_link（机器人基座） -->
+            <child link="camera_link" />  <!-- 相机的子连接为 camera_link -->
+            <!-- 设置相机的位姿，位置由传入的xyz参数决定 -->
             <origin xyz="${xyz}" />
         </joint>
+
     </xacro:macro>
 
 </robot>
