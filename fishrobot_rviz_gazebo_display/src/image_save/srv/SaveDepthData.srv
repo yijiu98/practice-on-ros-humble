@@ -1,0 +1,7 @@
+# 请求部分
+string save_path  # 保存路径
+
+---
+# 响应部分
+bool success      # 是否成功
+string message    # 返回的消息

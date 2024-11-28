@@ -2,3 +2,6 @@
 display_firstrobot.launch.py是测试的rviz demo
 display_fishrobot.launch.py是小鱼机器人的rivz demo
 gazebo_sim.launch.py是gazebo仿真，输出gps，imu，ladar，camera数据
+
+键盘遥控命令：
+ros2 run teleop_twist_keyboard teleop_twist_keyboard

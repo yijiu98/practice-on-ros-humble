@@ -5,4 +5,7 @@ CMakeFiles/
 CMakeCache.txt
 *.out
 .vscode
+cash/
+3rdparty/
+
 
