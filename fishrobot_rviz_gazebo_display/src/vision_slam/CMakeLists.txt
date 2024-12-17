@@ -33,6 +33,10 @@ endif()
 add_executable(vision_slam src/joint_map.cpp)
 
 target_link_libraries( vision_slam ${OpenCV_LIBS} ${PCL_LIBRARIES} )
+
+add_executable( feature_extraction src/feature_extraction.cpp  )
+target_link_libraries( feature_extraction ${OpenCV_LIBS} )
+
 # 安装 launch 文件
 install(TARGETS vision_slam
   DESTINATION lib/${PROJECT_NAME}  # 确保安装路径正确
