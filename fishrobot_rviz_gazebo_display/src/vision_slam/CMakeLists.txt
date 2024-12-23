@@ -30,17 +30,31 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(vision_slam src/joint_map.cpp)
-
-target_link_libraries( vision_slam ${OpenCV_LIBS} ${PCL_LIBRARIES} )
+# add_executable(vision_slam src/joint_map.cpp)
+# target_link_libraries( vision_slam ${OpenCV_LIBS} ${PCL_LIBRARIES} )
 
 add_executable( feature_extraction src/feature_extraction.cpp  )
 target_link_libraries( feature_extraction ${OpenCV_LIBS} )
 
+add_executable( pose_estimation_2d2d src/pose_estimation_2d2d.cpp )
+target_link_libraries( pose_estimation_2d2d ${OpenCV_LIBS} )
+
+add_executable( triangulation src/triangulation.cpp )
+target_link_libraries( triangulation ${OpenCV_LIBS} )
+
+add_subdirectory(src/joint_map)
+add_subdirectory(src/ceres_curve_fitting)
+# add_executable( pose_estimation_3d2d src/pose_estimation_3d2d.cpp )
+# target_link_libraries( pose_estimation_3d2d 
+#    ${OpenCV_LIBS}
+#    ${CSPARSE_LIBRARY}
+#    g2o_core g2o_stuff g2o_types_sba g2o_csparse_extension
+# )
+
 # 安装 launch 文件
-install(TARGETS vision_slam
-  DESTINATION lib/${PROJECT_NAME}  # 确保安装路径正确
-)
+# install(TARGETS vision_slam
+#   DESTINATION lib/${PROJECT_NAME}  # 确保安装路径正确
+# )
 
 install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
