@@ -8,8 +8,6 @@ CMakeCache.txt
 cash/
 fishrobot_rviz_gazebo_display/3rdparty/
 fishrobot_rviz_gazebo_display/3rdparty/
-fishrobot_rviz_gazebo_display/src/cartographer/
-fishrobot_rviz_gazebo_display/src/cartographer_ros/
 fishrobot_rviz_gazebo_display/src/ament_lint/
-fishrobot_rviz_gazebo_display/src/navigation2/
+
 
