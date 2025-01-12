@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(vision_slam)
+project(vision_odom)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -43,7 +43,7 @@ add_executable( triangulation src/triangulation.cpp )
 target_link_libraries( triangulation ${OpenCV_LIBS} )
 
 add_subdirectory(src/joint_map)
-add_subdirectory(src/ceres_curve_fitting)
+# add_subdirectory(src/ceres_curve_fitting)
 # add_executable( pose_estimation_3d2d src/pose_estimation_3d2d.cpp )
 # target_link_libraries( pose_estimation_3d2d 
 #    ${OpenCV_LIBS}

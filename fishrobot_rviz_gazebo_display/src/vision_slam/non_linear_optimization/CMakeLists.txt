@@ -1,0 +1,2 @@
+add_subdirectory(ceres_curve_fitting)
+add_subdirectory(g2o_curve_fitting)
