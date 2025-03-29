@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(ladar_slam)
+project(motion_control_system)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -7,8 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
+find_package(pluginlib REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -22,16 +21,25 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(run_imu_intergration src/run_imu_intergration.cpp)
-# 链接依赖项
-ament_target_dependencies(run_imu_intergration rclcpp sensor_msgs ament_cmake)
+include_directories(include)
+# ================添加库文件=====================
+add_library(spin_motion_controller SHARED src/spin_motion_controller.cpp)
+ament_target_dependencies(spin_motion_controller  pluginlib )
 
-# 安装 launch 文件
-install(TARGETS run_imu_intergration
-  DESTINATION lib/${PROJECT_NAME}  # 确保安装路径正确
+add_executable(test_plugin src/test_plugin.cpp)
+ament_target_dependencies(test_plugin pluginlib)
+install(TARGETS test_plugin
+    DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch/
-  DESTINATION share/${PROJECT_NAME}/launch
+install(TARGETS spin_motion_controller
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
+install(DIRECTORY include/
+  DESTINATION include/
+)
+# 导出插件描述文件
+pluginlib_export_plugin_description_file(motion_control_system spin_motion_plugins.xml)
 ament_package()
