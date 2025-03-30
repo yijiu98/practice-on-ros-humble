@@ -73,7 +73,7 @@ namespace nav2_custom_planner
         int total_number_of_loop =
             std::hypot(goal.pose.position.x - start.pose.position.x,
                        goal.pose.position.y - start.pose.position.y) /
-            interpolation_resolution_;
+            interpolation_resolution_;// 计算起点和终点之间的欧几里得距离，并除以插值分辨率，得到循环次数
         double x_increment =
             (goal.pose.position.x - start.pose.position.x) / total_number_of_loop;
         double y_increment =
