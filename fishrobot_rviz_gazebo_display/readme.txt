@@ -9,6 +9,13 @@ ros2 pkg list | grep cartographer
 cartographer_ros
 cartographer_ros_msgs
 
+nav2下载编译：
+git clone git@github.com:ros-navigation/navigation2.git -b humble
+src同级目录打开终端
+wget http://fishros.com/install -O fishros && . fishros
+rosdepc install -r --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
+colcon build --packages-up-to navigation2
+
 
 依赖：
 sudo apt install ros-humble-joint-state-broadcaster ros-humble-diff-drive-controller ros-humble-ros2-control

@@ -520,7 +520,7 @@ AmclNode::nomotionUpdateCallback(
 void
 AmclNode::initialPoseReceived(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
-  std::lock_guard<std::recursive_mutex> cfl(mutex_);
+  std::lock_guard<std::recursive_mutex> cfl(mutex_);//递归互斥锁，允许同一个线程多次锁定而不会死锁。
 
   RCLCPP_INFO(get_logger(), "initialPoseReceived");
 
@@ -528,6 +528,11 @@ AmclNode::initialPoseReceived(geometry_msgs::msg::PoseWithCovarianceStamped::Sha
     RCLCPP_ERROR(get_logger(), "Received initialpose message is malformed. Rejecting.");
     return;
   }
+  /*
+  * 检查消息的 frame_id 是否与全局坐标系 global_frame_id_ 匹配。
+    使用 nav2_util::strip_leading_slash 去掉 frame_id 中的前导斜杠（如果有）。
+    如果 frame_id 不匹配，记录一条警告日志并返回，忽略该消息。
+   */
   if (nav2_util::strip_leading_slash(msg->header.frame_id) != global_frame_id_) {
     RCLCPP_WARN(
       get_logger(),
@@ -538,7 +543,10 @@ AmclNode::initialPoseReceived(geometry_msgs::msg::PoseWithCovarianceStamped::Sha
   }
   // Overriding last published pose to initial pose
   last_published_pose_ = *msg;
-
+  /*
+    检查当前amcl节点是否处于活动状态
+    如果节点维激活，将标志位 init_pose_received_on_inactive 设置为 true，并记录一条警告日志。
+  */
   if (!active_) {
     init_pose_received_on_inactive = true;
     RCLCPP_WARN(
@@ -555,6 +563,7 @@ AmclNode::handleInitialPose(geometry_msgs::msg::PoseWithCovarianceStamped & msg)
   std::lock_guard<std::recursive_mutex> cfl(mutex_);
   // In case the client sent us a pose estimate in the past, integrate the
   // intervening odometric change.
+  //获取从odom_frame_id到base_frame_id的变换.用于将初始位姿转换到当前时间点
   geometry_msgs::msg::TransformStamped tx_odom;
   try {
     rclcpp::Time rclcpp_time = now();
@@ -574,10 +583,10 @@ AmclNode::handleInitialPose(geometry_msgs::msg::PoseWithCovarianceStamped & msg)
     }
     tf2::impl::Converter<false, true>::convert(tf2::Transform::getIdentity(), tx_odom.transform);
   }
-
+  //将tx_odom(ros2的Transformtamped类型)转换为tf2::Transform类型
   tf2::Transform tx_odom_tf2;
   tf2::impl::Converter<true, false>::convert(tx_odom.transform, tx_odom_tf2);
-
+  //通过乘法将初始位姿与里程计变换相结合，得到当前时间点的初始位姿
   tf2::Transform pose_old;
   tf2::impl::Converter<true, false>::convert(msg.pose.pose, pose_old);
 
@@ -592,12 +601,12 @@ AmclNode::handleInitialPose(geometry_msgs::msg::PoseWithCovarianceStamped & msg)
     pose_new.getOrigin().y(),
     tf2::getYaw(pose_new.getRotation()));
 
-  // Re-initialize the filter
+  // Re-initialize the filter定义了粒子滤波器的初始位姿均值
   pf_vector_t pf_init_pose_mean = pf_vector_zero();
   pf_init_pose_mean.v[0] = pose_new.getOrigin().x();
   pf_init_pose_mean.v[1] = pose_new.getOrigin().y();
   pf_init_pose_mean.v[2] = tf2::getYaw(pose_new.getRotation());
-
+  //初始化粒子滤波器的初始位姿协方差
   pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
   // Copy in the covariance, converting from 6-D to 3-D
   for (int i = 0; i < 2; i++) {
@@ -607,11 +616,11 @@ AmclNode::handleInitialPose(geometry_msgs::msg::PoseWithCovarianceStamped & msg)
   }
 
   pf_init_pose_cov.m[2][2] = msg.pose.covariance[6 * 5 + 5];
-
+  //  使用初始位姿均值和协方差重新初始化粒子滤波器
   pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
-  pf_init_ = false;
-  init_pose_received_on_inactive = false;
-  initial_pose_is_known_ = true;
+  pf_init_ = false;//表示粒子滤波器已经初始化
+  init_pose_received_on_inactive = false;//清除在非活动状态下接收到的初始位姿标志位
+  initial_pose_is_known_ = true;//标识初始位姿已知
 }
 
 void
@@ -622,16 +631,16 @@ AmclNode::laserReceived(sensor_msgs::msg::LaserScan::ConstSharedPtr laser_scan)
   // Since the sensor data is continually being published by the simulator or robot,
   // we don't want our callbacks to fire until we're in the active state
   if (!active_) {return;}
-  if (!first_map_received_) {
+  if (!first_map_received_) {//如果地图尚未接收，每隔2s打印一条警告消息，提示等待地图，然后返回
     if (checkElapsedTime(2s, last_time_printed_msg_)) {
       RCLCPP_WARN(get_logger(), "Waiting for map....");
       last_time_printed_msg_ = now();
     }
     return;
   }
-
+  //获取激光雷达扫描消息的坐标系ID，并去掉前导斜杠
   std::string laser_scan_frame_id = nav2_util::strip_leading_slash(laser_scan->header.frame_id);
-  last_laser_received_ts_ = now();
+  last_laser_received_ts_ = now();//更新为当前时间
   int laser_index = -1;
   geometry_msgs::msg::PoseStamped laser_pose;
 
@@ -1503,12 +1512,13 @@ AmclNode::initMessageFilters()
   laser_scan_sub_ = std::make_unique<message_filters::Subscriber<sensor_msgs::msg::LaserScan,
       rclcpp_lifecycle::LifecycleNode>>(
     shared_from_this(), scan_topic_, rmw_qos_profile_sensor_data, sub_opt);
-
+  //用于对激光雷达扫描消息sensor_msgs::msg::LaserScan进行滤波和时间同步，以确保消息在处理时与tf变换数据一致。。
+  //确保激光雷达扫描消息的时间戳与tf变换数据一致。
   laser_scan_filter_ = std::make_unique<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>>(
-    *laser_scan_sub_, *tf_buffer_, odom_frame_id_, 10,
-    get_node_logging_interface(),
-    get_node_clock_interface(),
-    transform_tolerance_);
+    *laser_scan_sub_, *tf_buffer_, odom_frame_id_, 10,//odom_frame_id_表示激光雷达扫描数据需要转换到的目标坐标系
+    get_node_logging_interface(),//获取节点的日志接口，用于记录日志信息
+    get_node_clock_interface(),//获取节点的时钟接口，用于时间同步
+    transform_tolerance_);//允许的时间同步误差范围。
 
 
   laser_scan_connection_ = laser_scan_filter_->registerCallback(
@@ -1531,7 +1541,7 @@ AmclNode::initPubSub()
     rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable());
 
   initial_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-    "initialpose", rclcpp::SystemDefaultsQoS(),
+    "initialpose", rclcpp::SystemDefaultsQoS(),//表示使用系统默认的QoS配置
     std::bind(&AmclNode::initialPoseReceived, this, std::placeholders::_1));
 
   map_sub_ = create_subscription<nav_msgs::msg::OccupancyGrid>(

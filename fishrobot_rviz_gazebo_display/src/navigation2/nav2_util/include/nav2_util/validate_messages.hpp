@@ -70,7 +70,7 @@ bool validateMsg(const std::array<double, N> & msg)
   return true;
 }
 
-const int NSEC_PER_SEC = 1e9;  // 1 second = 1e9 nanosecond
+const int NSEC_PER_SEC = 1e9;  // 1 second = 1e9 nanosecond  1纳秒=1e-9秒
 bool validateMsg(const builtin_interfaces::msg::Time & msg)
 {
   if (msg.nanosec >= NSEC_PER_SEC) {

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+//引入 ROS 2 和导航相关的头文件
 #include "nav2_core/controller.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/robot_utils.hpp"
@@ -16,18 +16,27 @@ class CustomController : public nav2_core::Controller {
 public:
   CustomController() = default;
   ~CustomController() override = default;
+  /*
+    configure方法用于初始化控制器插件，接收父节点、插件名称、坐标变换缓存和代价地图
+  */
   void configure(
       const rclcpp_lifecycle::LifecycleNode::WeakPtr &parent, std::string name,
       std::shared_ptr<tf2_ros::Buffer> tf,
       std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
+  /**/
   void cleanup() override;
+  /**/
   void activate() override;
+  /*停用插件*/
   void deactivate() override;
+  /*computeVelocityCommands 方法计算机器人当前的速度指令，基于当前位置、当前速度和目标检查器，以便机器人能沿着全局路径移动并最终到达目标位置，会被循环调用*/
   geometry_msgs::msg::TwistStamped
   computeVelocityCommands(const geometry_msgs::msg::PoseStamped &pose,
                           const geometry_msgs::msg::Twist &velocity,
                           nav2_core::GoalChecker * goal_checker) override;
+  /*setPlan 方法设置全局路径，供控制器跟踪。*/
   void setPlan(const nav_msgs::msg::Path &path) override;
+  /*setSpeedLimit 方法设置速度限制，可以是绝对值或百分比。*/
   void setSpeedLimit(const double &speed_limit,
                      const bool &percentage) override;
 
