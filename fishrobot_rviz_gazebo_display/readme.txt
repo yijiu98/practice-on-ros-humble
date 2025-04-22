@@ -8,6 +8,9 @@ colcon build --packages-up-to cartographer_ros
 ros2 pkg list | grep cartographer
 cartographer_ros
 cartographer_ros_msgs
+查看cartographer安装的目录
+ros2 pkg prefix cartographer_ros
+
 
 nav2下载编译：
 git clone git@github.com:ros-navigation/navigation2.git -b humble
