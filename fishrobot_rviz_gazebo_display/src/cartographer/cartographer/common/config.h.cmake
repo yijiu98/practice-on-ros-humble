@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+//cmake构建系统的一个模版文件，
 #ifndef CARTOGRAPHER_COMMON_CONFIG_H_
 #define CARTOGRAPHER_COMMON_CONFIG_H_
 
 namespace cartographer {
 namespace common {
-
+//这些占位符会在 CMakeLists.txt 文件中被具体的值替换
 constexpr char kConfigurationFilesDirectory[] =
     "@CARTOGRAPHER_CONFIGURATION_FILES_DIRECTORY@";
 constexpr char kSourceDirectory[] = "@PROJECT_SOURCE_DIR@";

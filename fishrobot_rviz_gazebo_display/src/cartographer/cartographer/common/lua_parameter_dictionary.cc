@@ -154,7 +154,7 @@ LuaParameterDictionary::NonReferenceCounted(
 
 LuaParameterDictionary::LuaParameterDictionary(
     const std::string& code, std::unique_ptr<FileResolver> file_resolver)
-    : LuaParameterDictionary(code, ReferenceCount::YES,
+    : LuaParameterDictionary(code, ReferenceCount::YES,//调用了这个类的另一个构造函数
                              std::move(file_resolver)) {}
 
 LuaParameterDictionary::LuaParameterDictionary(

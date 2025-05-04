@@ -104,10 +104,12 @@ Node::Node(
     metrics_registry_ = absl::make_unique<metrics::FamilyFactory>();
     carto::metrics::RegisterAllMetrics(metrics_registry_.get());
   }
-
+  //step1：声明需要发布的topic
+  //发布summaplist
   submap_list_publisher_ =
       node_->create_publisher<::cartographer_ros_msgs::msg::SubmapList>(
           kSubmapListTopic, 10);
+  //发布轨迹
   trajectory_node_list_publisher_ =
       node_->create_publisher<::visualization_msgs::msg::MarkerArray>(
           kTrajectoryNodeListTopic, 10);
@@ -122,11 +124,11 @@ Node::Node(
         node_->create_publisher<::geometry_msgs::msg::PoseStamped>(
             kTrackedPoseTopic, 10);
   }
-
+  //step3：处理之后的点云的发布器
   scan_matched_point_cloud_publisher_ =
       node_->create_publisher<sensor_msgs::msg::PointCloud2>(
         kScanMatchedPointCloudTopic, 10);
-
+  //step2:声明发布对应名字的ROS服务，并将服务的发布器放入到vector容器
   submap_query_server_ = node_->create_service<cartographer_ros_msgs::srv::SubmapQuery>(
       kSubmapQueryServiceName,
       std::bind(
@@ -156,7 +158,7 @@ Node::Node(
       std::bind(
           &Node::handleReadMetrics, this, std::placeholders::_1, std::placeholders::_2));
 
-
+  //step4：创建定时器与函数的绑定，定时发布数据
   submap_list_timer_ = node_->create_wall_timer(
     std::chrono::milliseconds(int(node_options_.submap_publish_period_sec * 1000)),
     [this]() {
@@ -375,7 +377,9 @@ void Node::PublishConstraintList() {
     constraint_list_publisher_->publish(map_builder_bridge_->GetConstraintList(node_->now()));
   }
 }
-
+/**
+ * 用于根据传入的 TrajectoryOptions 配置，计算当前轨迹所需订阅的传感器主题（topics）。它返回一个包含所有预期传感器 ID 的集合
+ */
 std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>
 Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
   using SensorId = cartographer::mapping::TrajectoryBuilderInterface::SensorId;
@@ -395,18 +399,18 @@ Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
     expected_topics.insert(SensorId{SensorType::RANGE, topic});
   }
   // For 2D SLAM, subscribe to the IMU if we expect it. For 3D SLAM, the IMU is
-  // required.
+  // required.imu topic的个数只能有一个
   if (node_options_.map_builder_options.use_trajectory_builder_3d() ||
       (node_options_.map_builder_options.use_trajectory_builder_2d() &&
        options.trajectory_builder_options.trajectory_builder_2d_options()
            .use_imu_data())) {
     expected_topics.insert(SensorId{SensorType::IMU, kImuTopic});
   }
-  // Odometry is optional.
+  // Odometry is optional.odom可以可无，topic的个数只能有一个
   if (options.use_odometry) {
     expected_topics.insert(SensorId{SensorType::ODOMETRY, kOdometryTopic});
   }
-  // NavSatFix is optional.
+  // NavSatFix is optional.--gps的
   if (options.use_nav_sat) {
     expected_topics.insert(
         SensorId{SensorType::FIXED_FRAME_POSE, kNavSatFixTopic});
@@ -417,13 +421,16 @@ Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
   }
   return expected_topics;
 }
-
+//添加一个新的轨迹
 int Node::AddTrajectory(const TrajectoryOptions& options) {
   const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>
       expected_sensor_ids = ComputeExpectedSensorIds(options);
+  //调用mao_builder_bridge的AddTrajectory，添加一个轨迹
   const int trajectory_id =
       map_builder_bridge_->AddTrajectory(expected_sensor_ids, options);
+  //新增一个位姿估计器
   AddExtrapolator(trajectory_id, options);
+  //新生成一个传感器数据采集器
   AddSensorSamplers(trajectory_id, options);
   LaunchSubscribers(options, trajectory_id);
   maybe_warn_about_topic_mismatch_timer_ = node_->create_wall_timer(
@@ -496,7 +503,7 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
          kLandmarkTopic});
   }
 }
-
+//检查TrajectoryOptions是否存在2d或者3d轨迹的配置信息
 bool Node::ValidateTrajectoryOptions(const TrajectoryOptions& options) {
   if (node_options_.map_builder_options.use_trajectory_builder_2d()) {
     return options.trajectory_builder_options
@@ -634,10 +641,12 @@ bool Node::handleStartTrajectory(
   }
   return true;
 }
-
+//使用默认topic名字开始一条轨迹，也就是开始slam
 void Node::StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options) {
   absl::MutexLock lock(&mutex_);
+  //检查TrajectoryOptions是否存在2d或者3d轨迹的配置信息
   CHECK(ValidateTrajectoryOptions(options));
+  //添加一条轨迹
   AddTrajectory(options);
 }
 

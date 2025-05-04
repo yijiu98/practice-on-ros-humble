@@ -64,7 +64,7 @@ class TrajectoryBuilderInterface {
 
   struct SensorId {
     enum class SensorType {
-      RANGE = 0,
+      RANGE = 0,//雷达，点云
       IMU,
       ODOMETRY,
       FIXED_FRAME_POSE,
@@ -72,8 +72,8 @@ class TrajectoryBuilderInterface {
       LOCAL_SLAM_RESULT
     };
 
-    SensorType type;
-    std::string id;
+    SensorType type;//传感器类型
+    std::string id;//topic的名字
 
     bool operator==(const SensorId& other) const {
       return std::forward_as_tuple(type, id) ==

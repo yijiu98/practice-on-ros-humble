@@ -56,8 +56,15 @@
 namespace cartographer_ros {
 
 // Wires up ROS topics to SLAM.
+//将ros的话题传入slam
 class Node {
  public:
+ /**
+  * node_options:配置文件的内容
+  * map_builder：slam算法的具体实现
+  * tf_buffer：tf
+  * collect_metrics：是否启用metrics，默认不启用
+  */
   Node(const NodeOptions& node_options,
        std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
        std::shared_ptr<tf2_ros::Buffer> tf_buffer,
@@ -183,7 +190,7 @@ class Node {
 
   absl::Mutex mutex_;
   std::unique_ptr<cartographer_ros::metrics::FamilyFactory> metrics_registry_;
-  std::shared_ptr<MapBuilderBridge> map_builder_bridge_ GUARDED_BY(mutex_);
+  std::shared_ptr<MapBuilderBridge> map_builder_bridge_ GUARDED_BY(mutex_);//GUARDED_BY是CLANG-Thread线程安全分析
 
   rclcpp::Node::SharedPtr node_;
   ::rclcpp::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
@@ -222,7 +229,8 @@ class Node {
   };
 
   // These are keyed with 'trajectory_id'.
-  std::map<int, ::cartographer::mapping::PoseExtrapolator> extrapolators_;
+  //map是红黑树实现，umordered_map是哈希实现的
+  std::map<int, ::cartographer::mapping::PoseExtrapolator> extrapolators_;//PoseExtrapolator位姿估计器
   std::map<int, builtin_interfaces::msg::Time> last_published_tf_stamps_;
   std::unordered_map<int, TrajectorySensorSamplers> sensor_samplers_;
   std::unordered_map<int, std::vector<Subscriber>> subscribers_;
