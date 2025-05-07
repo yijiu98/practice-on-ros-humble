@@ -70,7 +70,7 @@ void DWBLocalPlanner::configure(
   std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros)
 {
-  node_ = parent;
+  node_ = parent;//获取生命周期节点
   auto node = node_.lock();
 
   logger_ = node->get_logger();

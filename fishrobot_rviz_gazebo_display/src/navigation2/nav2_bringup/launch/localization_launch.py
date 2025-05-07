@@ -106,7 +106,7 @@ def generate_launch_description():
     declare_log_level_cmd = DeclareLaunchArgument(
         'log_level', default_value='info',
         description='log level')
-
+    #传统启动模式（map_server, amcl,lifecycle_manager）
     load_nodes = GroupAction(
         condition=IfCondition(PythonExpression(['not ', use_composition])),
         actions=[
@@ -131,8 +131,8 @@ def generate_launch_description():
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings),
             Node(
-                package='nav2_lifecycle_manager',
-                executable='lifecycle_manager',
+                package='nav2_lifecycle_manager',#文件夹名
+                executable='lifecycle_manager',#可执行文件名
                 name='lifecycle_manager_localization',
                 output='screen',
                 arguments=['--ros-args', '--log-level', log_level],
@@ -141,7 +141,7 @@ def generate_launch_description():
                             {'node_names': lifecycle_nodes}])
         ]
     )
-
+    #组件化启动模式
     load_composable_nodes = LoadComposableNodes(
         condition=IfCondition(use_composition),
         target_container=container_name_full,

@@ -21,7 +21,7 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<nav2_bt_navigator::BtNavigator>();
-  rclcpp::spin(node->get_node_base_interface());
+  rclcpp::spin(node->get_node_base_interface());//持续运行，处理节点的回调函数，直到节点被关闭。
   rclcpp::shutdown();
 
   return 0;

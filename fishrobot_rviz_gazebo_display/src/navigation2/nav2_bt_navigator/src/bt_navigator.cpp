@@ -30,10 +30,10 @@ namespace nav2_bt_navigator
 
 BtNavigator::BtNavigator(rclcpp::NodeOptions options)
 : nav2_util::LifecycleNode("bt_navigator", "",
-    options.automatically_declare_parameters_from_overrides(true))
+    options.automatically_declare_parameters_from_overrides(true))//初始化列表，初始化父类
 {
   RCLCPP_INFO(get_logger(), "Creating");
-
+  //插件库
   const std::vector<std::string> plugin_libs = {
     "nav2_compute_path_to_pose_action_bt_node",
     "nav2_compute_path_through_poses_action_bt_node",
@@ -83,7 +83,7 @@ BtNavigator::BtNavigator(rclcpp::NodeOptions options)
     "nav2_drive_on_heading_cancel_bt_node",
     "nav2_is_battery_charging_condition_bt_node"
   };
-
+  //申明参数，并设置默认值
   declare_parameter_if_not_declared(
     this, "plugin_lib_names", rclcpp::ParameterValue(plugin_libs));
   declare_parameter_if_not_declared(
@@ -105,12 +105,12 @@ BtNavigator::on_configure(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Configuring");
 
-  tf_ = std::make_shared<tf2_ros::Buffer>(get_clock());
-  auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+  tf_ = std::make_shared<tf2_ros::Buffer>(get_clock());//创建一个TF2缓冲区，用于存储坐标变换信息
+  auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(//创建一个定时器，用于管理tf2的定时任务
     get_node_base_interface(), get_node_timers_interface());
-  tf_->setCreateTimerInterface(timer_interface);
-  tf_->setUsingDedicatedThread(true);
-  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_, this, false);
+  tf_->setCreateTimerInterface(timer_interface);//将定时器接口u绑定到tf2缓冲区
+  tf_->setUsingDedicatedThread(true);//启用专用线程处理tf2的任务，避免阻塞主线程
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_, this, false);//创建一个tf2监听器，用于监听坐标变换
 
   global_frame_ = get_parameter("global_frame").as_string();
   robot_frame_ = get_parameter("robot_base_frame").as_string();
@@ -118,18 +118,18 @@ BtNavigator::on_configure(const rclcpp_lifecycle::State & /*state*/)
   odom_topic_ = get_parameter("odom_topic").as_string();
 
   // Libraries to pull plugins (BT Nodes) from
-  auto plugin_lib_names = get_parameter("plugin_lib_names").as_string_array();
+  auto plugin_lib_names = get_parameter("plugin_lib_names").as_string_array();//获取行为树插件库的名称列表，返回的是std::vector<std::string>
 
-  pose_navigator_ = std::make_unique<nav2_bt_navigator::NavigateToPoseNavigator>();
-  poses_navigator_ = std::make_unique<nav2_bt_navigator::NavigateThroughPosesNavigator>();
+  pose_navigator_ = std::make_unique<nav2_bt_navigator::NavigateToPoseNavigator>();//单目标点导航
+  poses_navigator_ = std::make_unique<nav2_bt_navigator::NavigateThroughPosesNavigator>();//多目标点导航
 
-  nav2_bt_navigator::FeedbackUtils feedback_utils;
+  nav2_bt_navigator::FeedbackUtils feedback_utils;//在导航中提供反馈信息
   feedback_utils.tf = tf_;
   feedback_utils.global_frame = global_frame_;
   feedback_utils.robot_frame = robot_frame_;
   feedback_utils.transform_tolerance = transform_tolerance_;
 
-  // Odometry smoother object for getting current speed
+  // Odometry smoother object for getting current speed创建一个里程计平滑器对象，用于平滑处理机器人速度数据
   odom_smoother_ = std::make_shared<nav2_util::OdomSmoother>(shared_from_this(), 0.3, odom_topic_);
 
   if (!pose_navigator_->on_configure(

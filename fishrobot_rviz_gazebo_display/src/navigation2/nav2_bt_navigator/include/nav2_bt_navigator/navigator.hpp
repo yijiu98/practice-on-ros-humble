@@ -140,20 +140,20 @@ public:
    * @return bool If successful
    */
   bool on_configure(
-    rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,
-    const std::vector<std::string> & plugin_lib_names,
-    const FeedbackUtils & feedback_utils,
-    nav2_bt_navigator::NavigatorMuxer * plugin_muxer,
+    rclcpp_lifecycle::LifecycleNode::WeakPtr parent_node,//弱指针，不会增加对象的引用计数，因此不等你直接访问对象。
+    const std::vector<std::string> & plugin_lib_names,//行为树插件库名称列别，用于动态加载行为树节点
+    const FeedbackUtils & feedback_utils,//导航反馈工具，包含坐标变换和参考帧信息
+    nav2_bt_navigator::NavigatorMuxer * plugin_muxer,//导航多路复用器，用于确保同一时间只有一个导航器在运行
     std::shared_ptr<nav2_util::OdomSmoother> odom_smoother)
   {
-    auto node = parent_node.lock();
+    auto node = parent_node.lock();//弱指针的成员函数，用于尝试获取一个共享指针std::shared_ptr
     logger_ = node->get_logger();
     clock_ = node->get_clock();
     feedback_utils_ = feedback_utils;
     plugin_muxer_ = plugin_muxer;
 
     // get the default behavior tree for this navigator
-    std::string default_bt_xml_filename = getDefaultBTFilepath(parent_node);
+    std::string default_bt_xml_filename = getDefaultBTFilepath(parent_node);//navigate_to_pose_w_replanning_and_recovery.xml
 
     // Create the Behavior Tree Action Server for this navigator
     bt_action_server_ = std::make_unique<nav2_behavior_tree::BtActionServer<ActionT>>(

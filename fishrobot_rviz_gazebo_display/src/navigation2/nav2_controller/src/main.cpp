@@ -20,6 +20,7 @@
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
+  //创建控制服务器节点
   auto node = std::make_shared<nav2_controller::ControllerServer>();
   //阻塞运行节点
   rclcpp::spin(node->get_node_base_interface());

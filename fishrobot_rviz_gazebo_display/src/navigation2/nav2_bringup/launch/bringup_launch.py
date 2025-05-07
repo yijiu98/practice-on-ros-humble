@@ -129,17 +129,17 @@ def generate_launch_description():
         PushRosNamespace(
             condition=IfCondition(use_namespace),
             namespace=namespace),
-
+        #组件容器初始化​​：为动态加载节点提供沙箱环境
         Node(
             condition=IfCondition(use_composition),
             name='nav2_container',
             package='rclcpp_components',
-            executable='component_container_isolated',
+            executable='component_container_isolated',#cmake中的名字
             parameters=[configured_params, {'autostart': autostart}],
             arguments=['--ros-args', '--log-level', log_level],
             remappings=remappings,
             output='screen'),
-
+        #SLAM模式：启动建图模块(slam_toolbox)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir, 'slam_launch.py')),
             condition=IfCondition(slam),
@@ -148,7 +148,7 @@ def generate_launch_description():
                               'autostart': autostart,
                               'use_respawn': use_respawn,
                               'params_file': params_file}.items()),
-
+        #非SLAM模式：启动定位模块+加载预建地图(amcl)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir,
                                                        'localization_launch.py')),
@@ -161,7 +161,7 @@ def generate_launch_description():
                               'use_composition': use_composition,
                               'use_respawn': use_respawn,
                               'container_name': 'nav2_container'}.items()),
-
+        # 导航核心启动​​：始终启动路径规划和控制器(palnner,controller,recovery)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir, 'navigation_launch.py')),
             launch_arguments={'namespace': namespace,

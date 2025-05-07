@@ -212,7 +212,7 @@ protected:
   std::string resolveCriticClassName(std::string base_name);
 
   /**
-   * @brief Load the critic parameters from the namespace
+   * @brief Load the critic评估器 parameters from the namespace
    * @param name The namespace of this planner.
    */
   virtual void loadCritics();
@@ -228,10 +228,10 @@ protected:
   std::vector<std::string> default_critic_namespaces_;
 
   // Plugin handling
-  pluginlib::ClassLoader<TrajectoryGenerator> traj_gen_loader_;
+  pluginlib::ClassLoader<TrajectoryGenerator> traj_gen_loader_;//轨迹生成
   TrajectoryGenerator::Ptr traj_generator_;
 
-  pluginlib::ClassLoader<TrajectoryCritic> critic_loader_;
+  pluginlib::ClassLoader<TrajectoryCritic> critic_loader_;//轨迹评分
   std::vector<TrajectoryCritic::Ptr> critics_;
 
   std::string dwb_plugin_name_;
