@@ -34,7 +34,16 @@
  *
  * Author: Alexey Merzlyakov
  *********************************************************************/
-
+/**
+ * 从mao_server中接收禁行区消息
+ * 限速区实现类：
+ * 1，出书啊时订阅filter_info_topic_,mask信息话题
+ * 2，接收mask信息话题，订阅mask话题
+ * 3，接收到mask，保存（实际上一张速度限制地图（大小随意），存着每个店对应的速度限制值）。
+ * 4，process中发布速度限制：根据机器人当前位置，查询mask，计算对应点的速度限制并发布。
+ * 注：maks没有的点，不会处理，位置原速度，（有可能是限速）
+ *       tf转换失败的点，也不会处理，维持原速度，（有可能是限速）
+ */
 #include "nav2_costmap_2d/costmap_filters/speed_filter.hpp"
 
 #include <cmath>
@@ -53,7 +62,7 @@ SpeedFilter::SpeedFilter()
   speed_limit_(NO_SPEED_LIMIT), speed_limit_prev_(NO_SPEED_LIMIT)
 {
 }
-
+//订阅info话题
 void SpeedFilter::initializeFilter(
   const std::string & filter_info_topic)
 {
@@ -92,7 +101,7 @@ void SpeedFilter::initializeFilter(
   multiplier_ = MULTIPLIER_DEFAULT;
   percentage_ = false;
 }
-
+//订阅mask话题
 void SpeedFilter::filterInfoCallback(
   const nav2_msgs::msg::CostmapFilterInfo::SharedPtr msg)
 {
@@ -119,7 +128,7 @@ void SpeedFilter::filterInfoCallback(
   // Set base_/multiplier_ or use speed limit in % of maximum speed
   base_ = msg->base;
   multiplier_ = msg->multiplier;
-  if (msg->type == SPEED_FILTER_PERCENT) {
+  if (msg->type == SPEED_FILTER_PERCENT) {//百分比限速
     // Using speed limit in % of maximum speed
     percentage_ = true;
     RCLCPP_INFO(
@@ -127,7 +136,7 @@ void SpeedFilter::filterInfoCallback(
       "SpeedFilter: Using expressed in a percent from maximum speed"
       "speed_limit = %f + filter_mask_data * %f",
       base_, multiplier_);
-  } else if (msg->type == SPEED_FILTER_ABSOLUTE) {
+  } else if (msg->type == SPEED_FILTER_ABSOLUTE) {//绝对值限速
     // Using speed limit in m/s
     percentage_ = false;
     RCLCPP_INFO(
@@ -138,7 +147,7 @@ void SpeedFilter::filterInfoCallback(
     RCLCPP_ERROR(logger_, "SpeedFilter: Mode is not supported");
     return;
   }
-
+  //获取mask话题名
   mask_topic_ = msg->filter_mask_topic;
 
   // Setting new filter mask subscriber
@@ -171,7 +180,7 @@ void SpeedFilter::maskCallback(
   filter_mask_ = msg;
   mask_frame_ = msg->header.frame_id;
 }
-
+//发布速度限制
 void SpeedFilter::process(
   nav2_costmap_2d::Costmap2D & /*master_grid*/,
   int /*min_i*/, int /*min_j*/, int /*max_i*/, int /*max_j*/,

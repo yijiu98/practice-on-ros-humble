@@ -47,7 +47,8 @@ struct PathSegment
 
 typedef std::vector<geometry_msgs::msg::PoseStamped>::iterator PathIterator;
 typedef std::vector<geometry_msgs::msg::PoseStamped>::reverse_iterator ReversePathIterator;
-
+//将完整的path分割成线段，分割标准：
+//1,路径尖点（转折超过90°），2原地旋转
 inline std::vector<PathSegment> findDirectionalPathSegments(
   const nav_msgs::msg::Path & path)
 {
@@ -58,6 +59,7 @@ inline std::vector<PathSegment> findDirectionalPathSegments(
   // Iterating through the path to determine the position of the cusp
   for (unsigned int idx = 1; idx < path.poses.size() - 1; ++idx) {
     // We have two vectors for the dot product OA and AB. Determining the vectors.
+    //考察连续三个点，o,a,b,计算向量oa,ob
     double oa_x = path.poses[idx].pose.position.x -
       path.poses[idx - 1].pose.position.x;
     double oa_y = path.poses[idx].pose.position.y -
@@ -67,7 +69,7 @@ inline std::vector<PathSegment> findDirectionalPathSegments(
     double ab_y = path.poses[idx + 1].pose.position.y -
       path.poses[idx].pose.position.y;
 
-    // Checking for the existance of cusp, in the path, using the dot product.
+    // Checking for the existance of cusp, in the path, using the dot product.使用点积检查路径中是否存在尖点
     double dot_product = (oa_x * ab_x) + (oa_y * ab_y);
     if (dot_product < 0.0) {
       curr_segment.end = idx;
@@ -75,7 +77,7 @@ inline std::vector<PathSegment> findDirectionalPathSegments(
       curr_segment.start = idx;
     }
 
-    // Checking for the existance of a differential rotation in place.
+    // Checking for the existance of a differential rotation in place.检查是否存在原地旋转
     double cur_theta = tf2::getYaw(path.poses[idx].pose.orientation);
     double next_theta = tf2::getYaw(path.poses[idx + 1].pose.orientation);
     double dtheta = angles::shortest_angular_distance(cur_theta, next_theta);

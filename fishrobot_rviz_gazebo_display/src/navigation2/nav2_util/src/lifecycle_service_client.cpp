@@ -84,7 +84,7 @@ bool LifecycleServiceClient::change_state(
   auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
   auto response = std::make_shared<lifecycle_msgs::srv::ChangeState::Response>();
   request->transition.id = transition;
-  return change_state_.invoke(request, response);
+  return change_state_.invoke(request, response);//invoke调用
 }
 
 uint8_t LifecycleServiceClient::get_state(

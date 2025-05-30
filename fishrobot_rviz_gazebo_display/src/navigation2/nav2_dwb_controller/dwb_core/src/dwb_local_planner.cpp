@@ -223,40 +223,51 @@ DWBLocalPlanner::loadCritics()
     RCLCPP_INFO(logger_, "Critic plugin initialized");
   }
 }
-
+/**
+ * 获取二维形式的全局路径，复位评价插件，复位轨迹生成器
+ * 传进来的path是完整的全局路径
+ * 控制器在接收到goal或者goal改变时，都会调用该函数 
+ */
 void
 DWBLocalPlanner::setPlan(const nav_msgs::msg::Path & path)
 {
+  //格式转换，path:6自由度的点（x,y,z四元数角度），Path2D：平面点，（x,y,z,theta）
   auto path2d = nav_2d_utils::pathToPath2D(path);
   for (TrajectoryCritic::Ptr & critic : critics_) {
     critic->reset();
   }
-
+  //收到新的路径，需要重置插件
   traj_generator_->reset();
 
   pub_->publishGlobalPlan(path2d);
+  //设置全局路径
   global_plan_ = path2d;
 }
-
+//核心函数：包装了的计算控制指令函数，供控制器调用
+//内部调用了控制指令计算函数
 geometry_msgs::msg::TwistStamped
 DWBLocalPlanner::computeVelocityCommands(
   const geometry_msgs::msg::PoseStamped & pose,
   const geometry_msgs::msg::Twist & velocity,
   nav2_core::GoalChecker * /*goal_checker*/)
 {
+  //构造一个评估结果的存储指针：评估过程中的一些中间量
   std::shared_ptr<dwb_msgs::msg::LocalPlanEvaluation> results = nullptr;
+  //如果需要发布评估结果，初始化指针
   if (pub_->shouldRecordEvaluation()) {
     results = std::make_shared<dwb_msgs::msg::LocalPlanEvaluation>();
   }
 
   try {
+    //核心代码：计算速度,传入当前pose，当前速度，返回下一步的最佳控制指令
     nav_2d_msgs::msg::Twist2DStamped cmd_vel2d = computeVelocityCommands(
       nav_2d_utils::poseStampedToPose2D(pose),
       nav_2d_utils::twist3Dto2D(velocity), results);
     pub_->publishEvaluation(results);
     geometry_msgs::msg::TwistStamped cmd_vel;
+    //格式转换子主题
     cmd_vel.twist = nav_2d_utils::twist2Dto3D(cmd_vel2d.velocity);
-    return cmd_vel;
+    return cmd_vel;//返回速度
   } catch (const nav2_core::PlannerException & e) {
     pub_->publishEvaluation(results);
     throw;
@@ -279,7 +290,11 @@ DWBLocalPlanner::prepareGlobalPlan(
     tf_, costmap_ros_->getGlobalFrameID(), goal_pose,
     goal_pose, transform_tolerance_);
 }
-
+/**
+ * 计算当前最佳速度指令
+ * 传入：当前位姿(x,yx.theta),当前速度(v,w),传入评价结果存储位置指针
+ * 返回：最佳速度(v,w)
+ */
 nav_2d_msgs::msg::Twist2DStamped
 DWBLocalPlanner::computeVelocityCommands(
   const nav_2d_msgs::msg::Pose2DStamped & pose,
@@ -291,14 +306,14 @@ DWBLocalPlanner::computeVelocityCommands(
     results->header.stamp = clock_->now();
   }
 
-  nav_2d_msgs::msg::Path2D transformed_plan;
-  nav_2d_msgs::msg::Pose2DStamped goal_pose;
-
+  nav_2d_msgs::msg::Path2D transformed_plan;//转换到local costmap坐标系下的一段全局路径
+  nav_2d_msgs::msg::Pose2DStamped goal_pose;//转换到local costmap坐标系下的终点
+  //传入当前pose，获得transformed_plan,goal_pose,对全局路径进行修剪
   prepareGlobalPlan(pose, transformed_plan, goal_pose);
 
   nav2_costmap_2d::Costmap2D * costmap = costmap_ros_->getCostmap();
   std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(costmap->getMutex()));
-
+  //准备插件，prepare函数中设置了必要信息，维护了插件对应的queue
   for (TrajectoryCritic::Ptr & critic : critics_) {
     if (!critic->prepare(pose.pose, velocity, goal_pose.pose, transformed_plan)) {
       RCLCPP_WARN(rclcpp::get_logger("DWBLocalPlanner"), "A scoring function failed to prepare");
@@ -306,25 +321,28 @@ DWBLocalPlanner::computeVelocityCommands(
   }
 
   try {
+    //计算最佳速度的核心函数，传入：当前位姿(x,y,theta),当前速度(v,w),传入评价结果存储位置指针
+    //返回轨迹分数(最佳值),其中包含了对应的速度
     dwb_msgs::msg::TrajectoryScore best = coreScoringAlgorithm(pose.pose, velocity, results);
 
     // Return Value
     nav_2d_msgs::msg::Twist2DStamped cmd_vel;
-    cmd_vel.header.stamp = clock_->now();
+    cmd_vel.header.stamp = clock_->now();//存储时间戳
     cmd_vel.velocity = best.traj.velocity;
 
-    // debrief stateful scoring functions
+    // debrief stateful scoring functions把结果反馈给评价插件
     for (TrajectoryCritic::Ptr & critic : critics_) {
       critic->debrief(cmd_vel.velocity);
     }
 
     lock.unlock();
-
+    //发布局部路径
     pub_->publishLocalPlan(pose.header, best.traj);
+    //发布局部代价地图
     pub_->publishCostGrid(costmap_ros_, critics_);
 
     return cmd_vel;
-  } catch (const dwb_core::NoLegalTrajectoriesException & e) {
+  } catch (const dwb_core::NoLegalTrajectoriesException & e) {//返回空指令的处理
     nav_2d_msgs::msg::Twist2D empty_cmd;
     dwb_msgs::msg::Trajectory2D empty_traj;
     // debrief stateful scoring functions
@@ -333,14 +351,18 @@ DWBLocalPlanner::computeVelocityCommands(
     }
 
     lock.unlock();
-
-    pub_->publishLocalPlan(pose.header, empty_traj);
+    
+    pub_->publishLocalPlan(pose.header, empty_traj);//异常时，发布空轨迹
     pub_->publishCostGrid(costmap_ros_, critics_);
 
     throw;
   }
 }
-
+/**
+ * 轨迹评分函数
+ * 传入：当前位姿(x,y,theta)，当前速度(v,w),传入评价结果存储位置指针
+ * 返回：最佳速度(v,w)
+ */
 dwb_msgs::msg::TrajectoryScore
 DWBLocalPlanner::coreScoringAlgorithm(
   const geometry_msgs::msg::Pose2D & pose,
@@ -349,28 +371,38 @@ DWBLocalPlanner::coreScoringAlgorithm(
 {
   nav_2d_msgs::msg::Twist2D twist;
   dwb_msgs::msg::Trajectory2D traj;
-  dwb_msgs::msg::TrajectoryScore best, worst;
+  dwb_msgs::msg::TrajectoryScore best, worst;//保存最好和最差轨迹
   best.total = -1;
   worst.total = -1;
-  IllegalTrajectoryTracker tracker;
-
+  IllegalTrajectoryTracker tracker;//合法轨迹跟踪器
+/****************单条轨迹评分大循环*******************************/
+  //初始化迭代器，包含(v,w)串口中的所有可能组合
   traj_generator_->startNewIteration(velocity);
+  //遍历，twist为（vx,w）的组合
   while (traj_generator_->hasMoreTwists()) {
+    //生成一组twist
     twist = traj_generator_->nextTwist();
+    //根据pose，velocity，twist积分出轨迹
+    //配置轨迹生成器参数可以改变轨迹长度
     traj = traj_generator_->generateTrajectory(pose, velocity, twist);
 
     try {
+      //给单条轨迹打分
+      //best.total为单条轨迹所有插件的总分，传进去作为一个阈值
       dwb_msgs::msg::TrajectoryScore score = scoreTrajectory(traj, best.total);
+      //合法轨迹+1
       tracker.addLegalTrajectory();
       if (results) {
         results->twists.push_back(score);
       }
+      //更新当前最佳分数，best.total的初始值设置为-1
       if (best.total < 0 || score.total < best.total) {
         best = score;
         if (results) {
           results->best_index = results->twists.size() - 1;
         }
       }
+      //更新当前最差分数，best.total的初始值设置为-1
       if (worst.total < 0 || score.total > worst.total) {
         worst = score;
         if (results) {
@@ -378,6 +410,7 @@ DWBLocalPlanner::coreScoringAlgorithm(
         }
       }
     } catch (const dwb_core::IllegalTrajectoryException & e) {
+      //失败的轨迹，也要记录在评估过程中
       if (results) {
         dwb_msgs::msg::TrajectoryScore failed_score;
         failed_score.traj = traj;
@@ -392,7 +425,7 @@ DWBLocalPlanner::coreScoringAlgorithm(
       tracker.addIllegalTrajectory(e);
     }
   }
-
+  //没有合法轨迹
   if (best.total < 0) {
     if (debug_trajectory_details_) {
       RCLCPP_ERROR(rclcpp::get_logger("DWBLocalPlanner"), "%s", tracker.getMessage().c_str());
@@ -406,7 +439,7 @@ DWBLocalPlanner::coreScoringAlgorithm(
     throw NoLegalTrajectoriesException(tracker);
   }
 
-  return best;
+  return best;//
 }
 
 dwb_msgs::msg::TrajectoryScore
@@ -439,7 +472,7 @@ DWBLocalPlanner::scoreTrajectory(
 
   return score;
 }
-
+//先剪切路径，再转到local坐标系，前后左右距离剪切，方形区域的局部地图的尺寸
 nav_2d_msgs::msg::Path2D
 DWBLocalPlanner::transformGlobalPlan(
   const nav_2d_msgs::msg::Pose2DStamped & pose)

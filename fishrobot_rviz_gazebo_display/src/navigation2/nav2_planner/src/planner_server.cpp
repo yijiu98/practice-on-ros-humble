@@ -44,13 +44,13 @@ PlannerServer::PlannerServer(const rclcpp::NodeOptions & options)
 : nav2_util::LifecycleNode("planner_server", "", options),
   gp_loader_("nav2_core", "nav2_core::GlobalPlanner"),
   default_ids_{"GridBased"},
-  default_types_{"nav2_navfn_planner/NavfnPlanner"},
+  default_types_{"nav2_navfn_planner/NavfnPlanner"},//默认规划器
   costmap_(nullptr)
 {
   RCLCPP_INFO(get_logger(), "Creating");
 
   // Declare this node's parameters
-  declare_parameter("planner_plugins", default_ids_);
+  declare_parameter("planner_plugins", default_ids_);//获取规划插件列表
   declare_parameter("expected_planner_frequency", 1.0);
 
   get_parameter("planner_plugins", planner_ids_);
@@ -60,7 +60,7 @@ PlannerServer::PlannerServer(const rclcpp::NodeOptions & options)
     }
   }
 
-  // Setup the global costmap
+  // Setup the global costmap代价地图实例化
   costmap_ros_ = std::make_shared<nav2_costmap_2d::Costmap2DROS>(
     "global_costmap", std::string{get_namespace()}, "global_costmap");
 }
@@ -95,7 +95,7 @@ PlannerServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   planner_types_.resize(planner_ids_.size());
 
   auto node = shared_from_this();
-
+    //遍历规划器插件列表
   for (size_t i = 0; i != planner_ids_.size(); i++) {
     try {
       planner_types_[i] = nav2_util::get_plugin_type_param(
@@ -136,9 +136,11 @@ PlannerServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
   }
 
   // Initialize pubs & subs
+  //发布路径，用于调试
   plan_publisher_ = create_publisher<nav_msgs::msg::Path>("plan", 1);
 
   // Create the action servers for path planning to a pose and through poses
+  //创建两个动作服务器
   action_server_pose_ = std::make_unique<ActionServerToPose>(
     shared_from_this(),
     "compute_path_to_pose",
@@ -169,12 +171,13 @@ PlannerServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
   costmap_ros_->activate();
 
   PlannerMap::iterator it;
+  //激活所有planner
   for (it = planners_.begin(); it != planners_.end(); ++it) {
     it->second->activate();
   }
 
   auto node = shared_from_this();
-
+  //创建路径合法性查询服务
   is_path_valid_service_ = node->create_service<nav2_msgs::srv::IsPathValid>(
     "is_path_valid",
     std::bind(
@@ -182,10 +185,11 @@ PlannerServer::on_activate(const rclcpp_lifecycle::State & /*state*/)
       std::placeholders::_1, std::placeholders::_2));
 
   // Add callback for dynamic parameters
+  // 动态参数响应
   dyn_params_handler_ = node->add_on_set_parameters_callback(
     std::bind(&PlannerServer::dynamicParametersCallback, this, _1));
 
-  // create bond connection
+  // create bond connection绑定生命周期节点
   createBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
@@ -221,7 +225,7 @@ PlannerServer::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
 
   return nav2_util::CallbackReturn::SUCCESS;
 }
-
+//清除资源占用
 nav2_util::CallbackReturn
 PlannerServer::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
 {
@@ -446,7 +450,7 @@ PlannerServer::computePlanThroughPoses()
     action_server_poses_->terminate_current();
   }
 }
-
+//核心函数：规划到点路径（单点导航）
 void
 PlannerServer::computePlan()
 {
@@ -464,10 +468,11 @@ PlannerServer::computePlan()
     }
 
     waitForCostmap();
-
+    //抢占目标位置导航的处理
     getPreemptedGoalIfRequested(action_server_pose_, goal);
 
     // Use start pose if provided otherwise use current robot pose
+    //获取起点，可以在goal中指定，也可以取机器人当前位置
     geometry_msgs::msg::PoseStamped start;
     if (!getStartPose(action_server_pose_, goal, start)) {
       return;
@@ -478,16 +483,16 @@ PlannerServer::computePlan()
     if (!transformPosesToGlobalFrame(action_server_pose_, start, goal_pose)) {
       return;
     }
-
+    //获取路径
     result->path = getPlan(start, goal_pose, goal->planner_id);
-
+    //检查结果-实际判断是否为空
     if (!validatePath(action_server_pose_, goal_pose, result->path, goal->planner_id)) {
       return;
     }
 
-    // Publish the plan for visualization purposes
+    // Publish the plan for visualization purposes发布路径，在rviz中显示
     publishPlan(result->path);
-
+    //计算发布间隔时间
     auto cycle_duration = this->now() - start_time;
     result->planning_time = cycle_duration;
 
@@ -498,7 +503,7 @@ PlannerServer::computePlan()
         1 / max_planner_duration_, 1 / cycle_duration.seconds());
     }
 
-    action_server_pose_->succeeded_current(result);
+    action_server_pose_->succeeded_current(result);//返回路径结果和计算路径的时间给客户端
   } catch (std::exception & ex) {
     RCLCPP_WARN(
       get_logger(), "%s plugin failed to plan calculation to (%.2f, %.2f): \"%s\"",
@@ -507,7 +512,7 @@ PlannerServer::computePlan()
     action_server_pose_->terminate_current();
   }
 }
-
+//调用规划器，获取路径
 nav_msgs::msg::Path
 PlannerServer::getPlan(
   const geometry_msgs::msg::PoseStamped & start,
@@ -522,7 +527,7 @@ PlannerServer::getPlan(
   if (planners_.find(planner_id) != planners_.end()) {
     return planners_[planner_id]->createPlan(start, goal);
   } else {
-    if (planners_.size() == 1 && planner_id.empty()) {
+    if (planners_.size() == 1 && planner_id.empty()) {//没有找到我们的规划器，又有一个规划器，就是用他
       RCLCPP_WARN_ONCE(
         get_logger(), "No planners specified in action call. "
         "Server will use only plugin %s in server."
@@ -547,7 +552,7 @@ PlannerServer::publishPlan(const nav_msgs::msg::Path & path)
     plan_publisher_->publish(std::move(msg));
   }
 }
-
+//路径合法性检查
 void PlannerServer::isPathValid(
   const std::shared_ptr<nav2_msgs::srv::IsPathValid::Request> request,
   std::shared_ptr<nav2_msgs::srv::IsPathValid::Response> response)
@@ -582,6 +587,7 @@ void PlannerServer::isPathValid(
      * The lethal check starts at the closest point to avoid points that have already been passed
      * and may have become occupied
      */
+    //遍历当前位置之后的路径点，检查是否有障碍物
     std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(costmap_->getMutex()));
     unsigned int mx = 0;
     unsigned int my = 0;
@@ -590,7 +596,7 @@ void PlannerServer::isPathValid(
         request->path.poses[i].pose.position.x,
         request->path.poses[i].pose.position.y, mx, my);
       unsigned int cost = costmap_->getCost(mx, my);
-
+        //致命障碍物
       if (cost == nav2_costmap_2d::LETHAL_OBSTACLE ||
         cost == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
       {

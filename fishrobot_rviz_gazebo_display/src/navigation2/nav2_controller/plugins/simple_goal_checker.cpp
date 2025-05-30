@@ -94,11 +94,12 @@ void SimpleGoalChecker::reset()
 {
   check_xy_ = true;
 }
-
+//判断是否到达目标点
 bool SimpleGoalChecker::isGoalReached(
   const geometry_msgs::msg::Pose & query_pose, const geometry_msgs::msg::Pose & goal_pose,
   const geometry_msgs::msg::Twist &)
 {
+  //先判断距离
   if (check_xy_) {
     double dx = query_pose.position.x - goal_pose.position.x,
       dy = query_pose.position.y - goal_pose.position.y;
@@ -106,17 +107,18 @@ bool SimpleGoalChecker::isGoalReached(
       return false;
     }
     // We are within the window
-    // If we are stateful, change the state.
+    // If we are stateful, change the state.如果进到范围内，置标志位，后续不再判断距离
     if (stateful_) {
-      check_xy_ = false;
+      check_xy_ = false;//如果stateful_为true，下一次不再检查距离误差
     }
   }
+  //获取角度差的函数
   double dyaw = angles::shortest_angular_distance(
     tf2::getYaw(query_pose.orientation),
     tf2::getYaw(goal_pose.orientation));
   return fabs(dyaw) < yaw_goal_tolerance_;
 }
-
+//只关心xy容差和角度容差
 bool SimpleGoalChecker::getTolerances(
   geometry_msgs::msg::Pose & pose_tolerance,
   geometry_msgs::msg::Twist & vel_tolerance)

@@ -1,3 +1,22 @@
+<!-- 
+插件作用：
+运动控制：
+
+通过订阅 cmd_vel 话题接收机器人的目标速度和角速度命令。
+根据接收到的命令控制机器人的左右轮子的转速，实现机器人的直线运动和转向。
+里程计发布：
+
+计算并发布机器人的里程计信息（odom），包括位置和姿态的变化。
+如果 publish_odom_tf 设置为 true，插件还会发布里程计坐标系（odom）到机器人基座坐标系（base_footprint）的变换（TF）。
+轮子变换发布：
+
+如果 publish_wheel_tf 设置为 true，插件还会发布轮子坐标系到机器人基座坐标系的变换（TF）。
+参数配置：
+
+设置更新频率（update_rate），控制插件状态更新的频率。
+定义左右轮的关节名称（left_joint 和 right_joint）。
+设置轮子之间的距离（wheel_separation）和轮子的直径（wheel_diameter）。
+设置最大转矩（max_wheel_torque）和最大加速度（max_wheel_acceleration）来限制轮子的运动。 -->
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
     <xacro:macro name="gazebo_control_plugin">

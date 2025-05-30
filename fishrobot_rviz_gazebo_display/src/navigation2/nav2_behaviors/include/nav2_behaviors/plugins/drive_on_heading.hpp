@@ -55,6 +55,7 @@ public:
    * @param command Goal to execute
    * @return Status of behavior
    */
+  //初始化函数
   Status onRun(const std::shared_ptr<const typename ActionT::Goal> command) override
   {
     if (command->target.y != 0.0 || command->target.z != 0.0) {
@@ -91,8 +92,10 @@ public:
    * @brief Loop function to run behavior
    * @return Status of behavior
    */
+  //循环执行行为
   Status onCycleUpdate() override
   {
+    //判断超时
     rclcpp::Duration time_remaining = end_time_ - this->clock_->now();
     if (time_remaining.seconds() < 0.0 && command_time_allowance_.seconds() > 0.0) {
       this->stopRobot();
@@ -122,7 +125,7 @@ public:
       this->stopRobot();
       return Status::SUCCEEDED;
     }
-
+    //设置速度
     auto cmd_vel = std::make_unique<geometry_msgs::msg::Twist>();
     cmd_vel->linear.y = 0.0;
     cmd_vel->angular.z = 0.0;
@@ -132,13 +135,13 @@ public:
     pose2d.x = current_pose.pose.position.x;
     pose2d.y = current_pose.pose.position.y;
     pose2d.theta = tf2::getYaw(current_pose.pose.orientation);
-
+    //碰撞检测
     if (!isCollisionFree(distance, cmd_vel.get(), pose2d)) {
       this->stopRobot();
       RCLCPP_WARN(this->logger_, "Collision Ahead - Exiting DriveOnHeading");
       return Status::FAILED;
     }
-
+    //发布速度
     this->vel_pub_->publish(std::move(cmd_vel));
 
     return Status::RUNNING;
@@ -166,6 +169,7 @@ protected:
     bool fetch_data = true;
 
     while (cycle_count < max_cycle_count) {
+      //计算下一个周期的pose
       sim_position_change = cmd_vel->linear.x * (cycle_count / this->cycle_frequency_);
       pose2d.x = init_pose.x + sim_position_change * cos(init_pose.theta);
       pose2d.y = init_pose.y + sim_position_change * sin(init_pose.theta);
@@ -174,7 +178,7 @@ protected:
       if (diff_dist - abs(sim_position_change) <= 0.) {
         break;
       }
-
+      //检查碰撞
       if (!this->collision_checker_->isCollisionFree(pose2d, fetch_data)) {
         return false;
       }

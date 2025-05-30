@@ -30,7 +30,7 @@ PhotoAtWaypoint::PhotoAtWaypoint()
 PhotoAtWaypoint::~PhotoAtWaypoint()
 {
 }
-
+//初始化函数
 void PhotoAtWaypoint::initialize(
   const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
   const std::string & plugin_name)
@@ -92,12 +92,13 @@ void PhotoAtWaypoint::initialize(
     RCLCPP_INFO(
       logger_, "Initializing photo at waypoint plugin, subscribing to camera topic named; %s",
       image_topic_.c_str());
+    //订阅话题
     camera_image_subscriber_ = node->create_subscription<sensor_msgs::msg::Image>(
       image_topic_, rclcpp::SystemDefaultsQoS(),
       std::bind(&PhotoAtWaypoint::imageCallback, this, std::placeholders::_1));
   }
 }
-
+//执行拍照任务
 bool PhotoAtWaypoint::processAtWaypoint(
   const geometry_msgs::msg::PoseStamped & curr_pose, const int & curr_waypoint_index)
 {
@@ -118,8 +119,8 @@ bool PhotoAtWaypoint::processAtWaypoint(
     // save the taken photo at this waypoint to given directory
     std::lock_guard<std::mutex> guard(global_mutex_);
     cv::Mat curr_frame_mat;
-    deepCopyMsg2Mat(curr_frame_msg_, curr_frame_mat);
-    cv::imwrite(full_path_image_path.c_str(), curr_frame_mat);
+    deepCopyMsg2Mat(curr_frame_msg_, curr_frame_mat);//复制图像
+    cv::imwrite(full_path_image_path.c_str(), curr_frame_mat);//保存图像
     RCLCPP_INFO(
       logger_,
       "Photo has been taken sucessfully at waypoint %i", curr_waypoint_index);
@@ -134,7 +135,7 @@ bool PhotoAtWaypoint::processAtWaypoint(
   }
   return true;
 }
-
+//接收相机话题
 void PhotoAtWaypoint::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
   std::lock_guard<std::mutex> guard(global_mutex_);

@@ -146,7 +146,7 @@ WaypointFollower::on_shutdown(const rclcpp_lifecycle::State & /*state*/)
   RCLCPP_INFO(get_logger(), "Shutting down");
   return nav2_util::CallbackReturn::SUCCESS;
 }
-
+//核心函数：处理多路点导航任务
 void
 WaypointFollower::followWaypoints()
 {
@@ -172,9 +172,9 @@ WaypointFollower::followWaypoints()
   rclcpp::WallRate r(loop_rate_);
   uint32_t goal_index = 0;
   bool new_goal = true;
-
+  //循环执行路点
   while (rclcpp::ok()) {
-    // Check if asked to stop processing action
+    // Check if asked to stop processing action响应取消
     if (action_server_->is_cancel_requested()) {
       auto cancel_future = nav_to_pose_client_->async_cancel_all_goals();
       callback_group_executor_.spin_until_future_complete(cancel_future);
@@ -184,7 +184,7 @@ WaypointFollower::followWaypoints()
       return;
     }
 
-    // Check if asked to process another action
+    // Check if asked to process another action响应抢断
     if (action_server_->is_preempt_requested()) {
       RCLCPP_INFO(get_logger(), "Preempting the goal pose.");
       goal = action_server_->accept_pending_goal();
@@ -192,12 +192,12 @@ WaypointFollower::followWaypoints()
       new_goal = true;
     }
 
-    // Check if we need to send a new goal
+    // Check if we need to send a new goal发现下一个目标点
     if (new_goal) {
       new_goal = false;
       ClientT::Goal client_goal;
       client_goal.pose = goal->poses[goal_index];
-
+      //设置action的回调函数
       auto send_goal_options = rclcpp_action::Client<ClientT>::SendGoalOptions();
       send_goal_options.result_callback =
         std::bind(&WaypointFollower::resultCallback, this, std::placeholders::_1);
@@ -207,10 +207,11 @@ WaypointFollower::followWaypoints()
         nav_to_pose_client_->async_send_goal(client_goal, send_goal_options);
       current_goal_status_ = ActionStatus::PROCESSING;
     }
-
+    //给用户发送反馈
     feedback->current_waypoint = goal_index;
     action_server_->publish_feedback(feedback);
-
+    //处理导航结果
+    //导航失败
     if (current_goal_status_ == ActionStatus::FAILED) {
       failed_ids_.push_back(goal_index);
 
@@ -254,7 +255,7 @@ WaypointFollower::followWaypoints()
           " moving to next.", goal_index);
       }
     }
-
+    //一次导航结束，设置更新目标标志位
     if (current_goal_status_ != ActionStatus::PROCESSING &&
       current_goal_status_ != ActionStatus::UNKNOWN)
     {

@@ -40,7 +40,7 @@ void GoalTool::onInitialize()
   setName("Nav2 Goal");
   setIcon(rviz_common::loadPixmap("package://rviz_default_plugins/icons/classes/SetGoal.png"));
 }
-
+/**槽函数，鼠标点击触发事件的回调函数 */
 void
 GoalTool::onPoseSet(double x, double y, double theta)
 {

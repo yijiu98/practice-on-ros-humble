@@ -51,7 +51,7 @@ void SimpleSmoother::configure(
   node->get_parameter(name + ".w_smooth", smooth_w_);
   node->get_parameter(name + ".do_refinement", do_refinement_);
 }
-
+//路径平滑器的入口
 bool SimpleSmoother::smooth(
   nav_msgs::msg::Path & path,
   const rclcpp::Duration & max_time)
@@ -65,10 +65,11 @@ bool SimpleSmoother::smooth(
   bool success = true, reversing_segment;
   nav_msgs::msg::Path curr_path_segment;
   curr_path_segment.header = path.header;
-
+  //给path分段
   std::vector<PathSegment> path_segments = findDirectionalPathSegments(path);
 
   for (unsigned int i = 0; i != path_segments.size(); i++) {
+    //线段大于9个点，进行平滑
     if (path_segments[i].end - path_segments[i].start > 9) {
       // Populate path segment
       curr_path_segment.poses.clear();
@@ -95,7 +96,7 @@ bool SimpleSmoother::smooth(
 
   return success;
 }
-
+//单段路径的平滑
 bool SimpleSmoother::smoothImpl(
   nav_msgs::msg::Path & path,
   bool & reversing_segment,
@@ -113,12 +114,12 @@ bool SimpleSmoother::smoothImpl(
 
   nav_msgs::msg::Path new_path = path;
   nav_msgs::msg::Path last_path = path;
-
+  //变化量大于阈值才继续迭代
   while (change >= tolerance_) {
     its += 1;
     change = 0.0;
 
-    // Make sure the smoothing function will converge
+    // Make sure the smoothing function will converge检查迭代次数，平滑是耗时操作
     if (its >= max_its_) {
       RCLCPP_WARN(
         logger_,
@@ -128,7 +129,7 @@ bool SimpleSmoother::smoothImpl(
       return false;
     }
 
-    // Make sure still have time left to process
+    // Make sure still have time left to process检查剩余时间
     steady_clock::time_point b = steady_clock::now();
     rclcpp::Duration timespan(duration_cast<duration<double>>(b - a));
     if (timespan > max_dur) {
@@ -139,7 +140,7 @@ bool SimpleSmoother::smoothImpl(
       updateApproximatePathOrientations(path, reversing_segment);
       return false;
     }
-
+    //双层循环，分纬度对路径进行平滑
     for (unsigned int i = 1; i != path_size - 1; i++) {
       for (unsigned int j = 0; j != 2; j++) {
         x_i = getFieldByDim(path.poses[i], j);
@@ -149,12 +150,14 @@ bool SimpleSmoother::smoothImpl(
         y_i_org = y_i;
 
         // Smooth based on local 3 point neighborhood and original data locations
+        //基于本地3点领域和原始数据位置的平滑
         y_i += data_w_ * (x_i - y_i) + smooth_w_ * (y_ip1 + y_m1 - (2.0 * y_i));
         setFieldByDim(new_path.poses[i], j, y_i);
         change += abs(y_i - y_i_org);
       }
 
       // validate update is admissible, only checks cost if a valid costmap pointer is provided
+      //检查碰撞
       float cost = 0.0;
       if (costmap) {
         costmap->worldToMap(

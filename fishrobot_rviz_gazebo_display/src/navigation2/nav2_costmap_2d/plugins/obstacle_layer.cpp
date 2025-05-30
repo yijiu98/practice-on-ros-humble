@@ -48,7 +48,13 @@
 #include "nav2_costmap_2d/costmap_math.hpp"
 
 PLUGINLIB_EXPORT_CLASS(nav2_costmap_2d::ObstacleLayer, nav2_costmap_2d::Layer)
-
+/**
+ * 障碍物层的实现类
+ * 读取数据源，订阅话题数据，并在回调函数中奖障碍物加入观测器
+ * 提供了边界更新方法：将障碍物加入costmap，并更新障碍物边界
+ * 提供了射线清除的方法：读取清除观测器，并根据点云清除直线上所有障碍物。
+ * 标记障碍物
+ */
 using nav2_costmap_2d::NO_INFORMATION;
 using nav2_costmap_2d::LETHAL_OBSTACLE;
 using nav2_costmap_2d::FREE_SPACE;
@@ -67,7 +73,9 @@ ObstacleLayer::~ObstacleLayer()
     notifier.reset();
   }
 }
-
+/**
+ * 读取参数，并为每一个数据源实例化一个观测器，并入栈到是哪个buffer
+ */
 void ObstacleLayer::onInitialize()
 {
   bool track_unknown_space;
@@ -125,9 +133,10 @@ void ObstacleLayer::onInitialize()
   sub_opt.callback_group = callback_group_;
 
   // now we need to split the topics based on whitespace which we can use a stringstream for
-  std::stringstream ss(topics_string);
+  std::stringstream ss(topics_string);//配置文件中的话题名如scan（多传感器还有rgbd，超声波等等）
 
   std::string source;
+  //遍历数据源，这个添加订阅和滤波话题，并为每个数据源实例化一个缓冲区
   while (ss >> source) {
     // get the parameters for the specific topic
     double observation_keep_time, expected_update_rate, min_obstacle_height, max_obstacle_height;
@@ -163,7 +172,7 @@ void ObstacleLayer::onInitialize()
     node->get_parameter(name_ + "." + source + "." + "inf_is_valid", inf_is_valid);
     node->get_parameter(name_ + "." + source + "." + "marking", marking);
     node->get_parameter(name_ + "." + source + "." + "clearing", clearing);
-
+    //类型检查，只支持点云和激光
     if (!(data_type == "PointCloud2" || data_type == "LaserScan")) {
       RCLCPP_FATAL(
         logger_,
@@ -189,7 +198,7 @@ void ObstacleLayer::onInitialize()
       source.c_str(), topic.c_str(),
       sensor_frame.c_str());
 
-    // create an observation buffer
+    // create an observation buffer为每个数据源实例化一个观测缓存器，将缓存器加入观测缓存队列
     observation_buffers_.push_back(
       std::shared_ptr<ObservationBuffer
       >(
@@ -202,12 +211,14 @@ void ObstacleLayer::onInitialize()
           sensor_frame, tf2::durationFromSec(transform_tolerance))));
 
     // check if we'll add this buffer to our marking observation buffers
-    if (marking) {
+    //将观测缓存器加入标记缓存队列，
+    if (marking) {//是否需要再costmao中标记，还有不用标记的？
       marking_buffers_.push_back(observation_buffers_.back());
     }
 
     // check if we'll also add this buffer to our clearing observation buffers
-    if (clearing) {
+    //将观测缓存器也加入清除缓存队列
+    if (clearing) {//是否需要射线清除
       clearing_buffers_.push_back(observation_buffers_.back());
     }
 
@@ -221,19 +232,19 @@ void ObstacleLayer::onInitialize()
     rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
     custom_qos_profile.depth = 50;
 
-    // create a callback for the topic
+    // create a callback for the topic为数据话题创建订阅者
     if (data_type == "LaserScan") {
       auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan,
           rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
       sub->unsubscribe();
-
+      //实例化一个过滤器
       auto filter = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>>(
         *sub, *tf_, global_frame_, 50,
         node->get_node_logging_interface(),
         node->get_node_clock_interface(),
         tf2::durationFromSec(transform_tolerance));
-
-      if (inf_is_valid) {
+        //注册过滤器回调函数，用于处理激光雷达数据
+      if (inf_is_valid) {//根据这个，配置了不同的回调处理函数，处理INF值
         filter->registerCallback(
           std::bind(
             &ObstacleLayer::laserScanValidInfCallback, this, std::placeholders::_1,
@@ -245,13 +256,13 @@ void ObstacleLayer::onInitialize()
             &ObstacleLayer::laserScanCallback, this, std::placeholders::_1,
             observation_buffers_.back()));
       }
-
+      //将订阅的话题入栈到订阅话题的容器
       observation_subscribers_.push_back(sub);
-
+      //过滤器也入栈到容器
       observation_notifiers_.push_back(filter);
       observation_notifiers_.back()->setTolerance(rclcpp::Duration::from_seconds(0.05));
 
-    } else {
+    } else {//点云订阅
       auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
           rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
       sub->unsubscribe();
@@ -322,7 +333,11 @@ ObstacleLayer::dynamicParametersCallback(
   result.successful = true;
   return result;
 }
-
+/*
+  * 订阅激光雷达数据的回调函数
+  * 将激光雷达数据转换为点云数据，
+  * 并存储到buffer->bufferCloud中
+  */
 void
 ObstacleLayer::laserScanCallback(
   sensor_msgs::msg::LaserScan::ConstSharedPtr message,
@@ -334,6 +349,7 @@ ObstacleLayer::laserScanCallback(
 
   // project the scan into a point cloud
   try {
+    //核心函数：将激光雷达数据转换成点云--ros库函数
     projector_.transformLaserScanToPointCloud(message->header.frame_id, *message, cloud, *tf_);
   } catch (tf2::TransformException & ex) {
     RCLCPP_WARN(
@@ -353,6 +369,7 @@ ObstacleLayer::laserScanCallback(
 
   // buffer the point cloud
   buffer->lock();
+  //入栈点云
   buffer->bufferCloud(cloud);
   buffer->unlock();
 }
@@ -399,7 +416,7 @@ ObstacleLayer::laserScanValidInfCallback(
   buffer->bufferCloud(cloud);
   buffer->unlock();
 }
-
+//电魂数据直接存入缓存buffer->bufferCloud
 void
 ObstacleLayer::pointCloud2Callback(
   sensor_msgs::msg::PointCloud2::ConstSharedPtr message,
@@ -410,7 +427,11 @@ ObstacleLayer::pointCloud2Callback(
   buffer->bufferCloud(*message);
   buffer->unlock();
 }
-
+/**
+ * 处理障碍物
+ * 将障碍物加入costmap，并更新障碍物范围
+ * 更新边界值
+ */
 void
 ObstacleLayer::updateBounds(
   double robot_x, double robot_y, double robot_yaw, double * min_x,
@@ -428,21 +449,23 @@ ObstacleLayer::updateBounds(
   bool current = true;
   std::vector<Observation> observations, clearing_observations;
 
-  // get the marking observations
+  // get the marking observations获取观测数据
   current = current && getMarkingObservations(observations);
 
-  // get the clearing observations
+  // get the clearing observations获取清除数据
   current = current && getClearingObservations(clearing_observations);
 
   // update the global current status
   current_ = current;
 
-  // raytrace freespace
+  // raytrace freespace遍历观测器，实行射线清除
   for (unsigned int i = 0; i < clearing_observations.size(); ++i) {
     raytraceFreespace(clearing_observations[i], min_x, min_y, max_x, max_y);
   }
 
   // place the new obstacles into a priority queue... each with a priority of zero to begin with
+  //将障碍物加入到一个优先级队列中，初始优先级为0
+  //这里是遍历所有观测器，每个数据源一个观测器，观测器中有点云
   for (std::vector<Observation>::const_iterator it = observations.begin();
     it != observations.end(); ++it)
   {
@@ -460,7 +483,7 @@ ObstacleLayer::updateBounds(
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
       double px = *iter_x, py = *iter_y, pz = *iter_z;
 
-      // if the obstacle is too low, we won't add it
+      // if the obstacle is too low, we won't add it基于高度范围的过滤
       if (pz < min_obstacle_height_) {
         RCLCPP_DEBUG(logger_, "The point is too low");
         continue;
@@ -472,37 +495,40 @@ ObstacleLayer::updateBounds(
         continue;
       }
 
-      // compute the squared distance from the hitpoint to the pointcloud's origin
+      // compute the squared distance from the hitpoint to the pointcloud's origin计算障碍物里传感器距离
       double sq_dist =
         (px -
         obs.origin_.x) * (px - obs.origin_.x) + (py - obs.origin_.y) * (py - obs.origin_.y) +
         (pz - obs.origin_.z) * (pz - obs.origin_.z);
 
-      // if the point is far enough away... we won't consider it
+      // if the point is far enough away... we won't consider it基于最远距离过滤
       if (sq_dist >= sq_obstacle_max_range) {
         RCLCPP_DEBUG(logger_, "The point is too far away");
         continue;
       }
 
-      // if the point is too close, do not conisder it
+      // if the point is too close, do not conisder it基于最近距离过滤
       if (sq_dist < sq_obstacle_min_range) {
         RCLCPP_DEBUG(logger_, "The point is too close");
         continue;
       }
-
+      //将符合范围的障碍物在costmao中标记
       // now we need to compute the map coordinates for the observation
+      //世界坐标换算到地图坐标
       unsigned int mx, my;
       if (!worldToMap(px, py, mx, my)) {
         RCLCPP_DEBUG(logger_, "Computing map coords failed");
         continue;
       }
-
+      //地图坐标换算到序号
       unsigned int index = getIndex(mx, my);
-      costmap_[index] = LETHAL_OBSTACLE;
+      //更新代价地图中对应位置的状态
+      costmap_[index] = LETHAL_OBSTACLE;//致命障碍物
+      //更新边界，边界指的是最大障碍物的范围，每加入一个点，就更新一次范围
       touch(px, py, min_x, min_y, max_x, max_y);
     }
   }
-
+//更新脚印，并根据脚印更新边界
   updateFootprint(robot_x, robot_y, robot_yaw, min_x, min_y, max_x, max_y);
 }
 
@@ -520,7 +546,12 @@ ObstacleLayer::updateFootprint(
     touch(transformed_footprint_[i].x, transformed_footprint_[i].y, min_x, min_y, max_x, max_y);
   }
 }
-
+/**
+ * 将本层的代价值更行到master
+ * 传入的范围，是上面冲击出来的更新的障碍物的最大范围
+ * 传入范围减少计算量
+ * 更新代价值
+ */
 void
 ObstacleLayer::updateCosts(
   nav2_costmap_2d::Costmap2D & master_grid, int min_i, int min_j,
@@ -537,13 +568,13 @@ ObstacleLayer::updateCosts(
     was_reset_ = false;
     current_ = true;
   }
-
+  //如果清理脚印，设置脚印内的代价值为空闲
   if (footprint_clearing_enabled_) {
     setConvexPolygonCost(transformed_footprint_, nav2_costmap_2d::FREE_SPACE);
   }
 
   switch (combination_method_) {
-    case 0:  // Overwrite
+    case 0:  // Overwrite直接覆盖
       updateWithOverwrite(master_grid, min_i, min_j, max_i, max_j);
       break;
     case 1:  // Maximum
@@ -553,7 +584,7 @@ ObstacleLayer::updateCosts(
       break;
   }
 }
-
+//将观测无入栈保存
 void
 ObstacleLayer::addStaticObservation(
   nav2_costmap_2d::Observation & obs,

@@ -251,7 +251,7 @@ bool SmootherServer::findSmootherId(
 
   return true;
 }
-
+//执行路径平滑
 void SmootherServer::smoothPlan()
 {
   auto start_time = this->now();
@@ -259,6 +259,7 @@ void SmootherServer::smoothPlan()
   RCLCPP_INFO(get_logger(), "Received a path to smooth.");
 
   auto result = std::make_shared<Action::Result>();
+  //找到指定的平滑器-navigation2的运行期切换
   try {
     auto goal = action_server_->get_current_goal();
     if (!goal) {
@@ -276,10 +277,11 @@ void SmootherServer::smoothPlan()
 
     // Perform smoothing
     result->path = goal->path;
+    //调用平滑函数
     result->was_completed = smoothers_[current_smoother_]->smooth(
       result->path, goal->max_smoothing_duration);
     result->smoothing_duration = this->now() - start_time;
-
+      //规定时间内未完成
     if (!result->was_completed) {
       RCLCPP_INFO(
         get_logger(),
@@ -289,6 +291,7 @@ void SmootherServer::smoothPlan()
         rclcpp::Duration(goal->max_smoothing_duration).seconds(),
         rclcpp::Duration(result->smoothing_duration).seconds());
     }
+    //发布路径
     plan_publisher_->publish(result->path);
 
     // Check for collisions

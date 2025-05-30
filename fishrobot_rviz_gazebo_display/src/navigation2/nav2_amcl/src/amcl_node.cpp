@@ -1539,7 +1539,7 @@ AmclNode::initPubSub()
   pose_pub_ = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
     "amcl_pose",
     rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable());
-
+  //订阅rviz的地址模拟，然后触发定位的回调。
   initial_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
     "initialpose", rclcpp::SystemDefaultsQoS(),//表示使用系统默认的QoS配置
     std::bind(&AmclNode::initialPoseReceived, this, std::placeholders::_1));

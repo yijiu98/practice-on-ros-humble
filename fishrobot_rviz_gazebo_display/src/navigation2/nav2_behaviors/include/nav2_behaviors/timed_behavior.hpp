@@ -120,7 +120,7 @@ public:
     node->get_parameter("global_frame", global_frame_);
     node->get_parameter("robot_base_frame", robot_base_frame_);
     node->get_parameter("transform_tolerance", transform_tolerance_);
-
+    //创建具体行为的动作服务器
     action_server_ = std::make_shared<ActionServer>(
       node, behavior_name_,
       std::bind(&TimedBehavior::execute, this));
@@ -182,6 +182,7 @@ protected:
 
   // Main execution callbacks for the action server implementation calling the Behavior's
   // onRun and cycle functions to execute a specific behavior
+  //行为的动作服务器回调行数
   void execute()
   {
     RCLCPP_INFO(logger_, "Running %s", behavior_name_.c_str());
@@ -192,7 +193,7 @@ protected:
         "Called while inactive, ignoring request.");
       return;
     }
-
+    //初始化行为
     if (onRun(action_server_->get_current_goal()) != Status::SUCCEEDED) {
       RCLCPP_INFO(
         logger_,
@@ -231,7 +232,7 @@ protected:
         onActionCompletion();
         return;
       }
-
+      //执行具体的行为动作，并处理执行结果
       switch (onCycleUpdate()) {
         case Status::SUCCEEDED:
           RCLCPP_INFO(
