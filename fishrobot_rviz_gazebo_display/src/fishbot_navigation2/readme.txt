@@ -1,7 +1,0 @@
-ros2 pkg create fishbot_navigation2 --dependencies nav2_bringup
-src/navigation2/nav2_bringup/bringup/params/nav2_params.yaml的内容复制粘贴到当前的config文件中
-
-colcon build --packages-select fishbot_navigation2
-
-launch：
-navigation2_test_line.launch.py使用配置文件nav2_params.yaml使用了自定义nav2_custom_controller::CustomController、nav2_custom_planner/CustomPlanner

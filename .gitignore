@@ -6,8 +6,8 @@ CMakeCache.txt
 *.out
 .vscode
 cash/
-fishrobot_rviz_gazebo_display/3rdparty/
-fishrobot_rviz_gazebo_display/3rdparty/
-fishrobot_rviz_gazebo_display/src/ament_lint/
+robot_rviz_gazebo_display/3rdparty/
+robot_rviz_gazebo_display/3rdparty/
+robot_rviz_gazebo_display/src/ament_lint/
 
 

@@ -1,2 +1,0 @@
-nav2_custom_controller-规控插件，相当与DWB
-nav2_custom_planner-路径规划插件。

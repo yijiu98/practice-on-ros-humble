@@ -1,2 +1,0 @@
-from：鱼香ros2书
-ros2 run motion_control_system test_plugin motion_control_system/SpinMotionController

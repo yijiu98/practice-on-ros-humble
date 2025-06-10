@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+   <xacro:include filename="$(find fishbot_description)/urdf/fishbot/common_inertia.xacro" />
+
+   <!-- 定义RTK模块 -->
+   <xacro:macro name="rtk_xacro" params="xyz">
+      <link name="rtk_link">
+         <!-- 可视化部分 -->
+         <visual>
+            <origin xyz="0 0 00" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="0.025" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.0 1.0 0.0 0.8" />
+            </material>
+         </visual>
+
+         <!-- 碰撞部分 -->
+         <collision>
+            <origin xyz="0 0 00" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="0.025" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.0 1.0 0.0 0.8" />
+            </material>
+         </collision>
+
+         <!-- 惯性部分 -->
+         <xacro:box_inertia m="0.01" w="0.02" d="0.02" h="0.02"/>
+      </link>
+
+      <!-- RTK传感器与base_link的连接 -->
+      <joint name="rtk_joint" type="fixed">
+         <parent link="base_link" />
+         <child link="rtk_link" />
+         <origin xyz="${xyz}" />
+      </joint>
+   </xacro:macro>
+
+</robot>
